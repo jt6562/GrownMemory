@@ -4,13 +4,13 @@ A photo gallery service for my son.
 
 # TODO
 
-- [ ] 实现通信框架
+- [x] 实现通信框架
 - [ ] 实现启动器
-- [ ] 实现Importer
+- [x] 实现Importer
 
   - [ ] 实现图片解析
 
-- [ ] 实现Watchers
+- [x] 实现Watchers
 
   - [ ] 实现DirectoryWatcher
   - [ ] 实现WechatWatcher
