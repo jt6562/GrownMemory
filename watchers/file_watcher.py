@@ -35,7 +35,10 @@ class FileWatcher(base.Watcher):
                 continue
 
             with open(filename, 'r') as f:
-                job = {'source': filename, 'content': f.read()}
+                job = {'source': 'directory',
+                       'type': 'image',  # or video
+                       'name': os.path.split(filename)[1],
+                       'content': f.read()}
             self.info('Get a file: %s' % filename)
             self.send(job)
             os.remove(filename)

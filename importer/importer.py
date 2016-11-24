@@ -25,12 +25,14 @@ class Worker(object):
         ins.run()
 
     def process(self, job):
-        pass
+        with open(job['name'], 'w') as f:
+            f.write(job['content'])
 
     def run(self):
+        count = 1
         while 1:
             job = self.queue.get()
-            logger.debug('get job %s %s ', job, self.exporter_sock.closed)
+            logger.debug('get job %s %s ', job['source'], job['name'])
             self.process(job)
             if hasattr(self.queue, 'task_done'):
                 self.queue.task_done()
@@ -75,9 +77,12 @@ class MainLoop(BaseClasses.ImporterBase):
         if self.watcher_sock in socks and socks[
                 self.watcher_sock] == zmq.POLLIN:
             message = self.watcher_sock.recv_pyobj()
-            self.debug("Recieved control command: %s" % message)
+            if not message:
+                print message
+                return
+
+            self.debug("Recieved event: %s" % message['type'])
             self._queue.put(message)
-            self.debug('Queue size: %d' % self._queue.qsize())
 
     def clean(self):
         self._queue.join()

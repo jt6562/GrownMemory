@@ -2,6 +2,7 @@
 
 import zmq
 from configobj import ConfigObj
+import enum
 
 
 class Base(object):
@@ -67,3 +68,5 @@ class WatcherBase(Base):
 
 class ImporterBase(Base):
     pass
+
+

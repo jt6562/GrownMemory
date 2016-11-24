@@ -70,3 +70,18 @@ digraph overview {
 ## 启动器 Starter
 
 使用supervisor管理多个实例进程。
+
+# 协议说明
+## Watcher -> Importer
+{
+    "source": "[directory|wechat|web]",
+    "type": "file",
+    "name": "file name",
+    "content": "file content"
+}
+
+## Import -> Exporter
+{
+    "name": "sha1 of file content",
+    "content": "file content"
+}
