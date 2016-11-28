@@ -1,41 +1,16 @@
 # encoding: utf-8
 
 import json
-from multiprocessing import Process, Queue as mq
-import multiprocessing
-from threading import Thread
-import zmq as zmq
 import logging
 import time
+import multiprocessing
+from multiprocessing import Process, Queue as mq
+import zmq as zmq
+
 import common as BaseClasses
+import worker
 
 logger = logging.getLogger('main.importer.importer')
-
-
-class Worker(object):
-
-    def __init__(self, queue, exporter_sock, logger):
-        self.queue = queue
-        self.exporter_sock = exporter_sock
-        self._logger = logger
-
-    @classmethod
-    def start(cls, queue, exporter_sock, logger):
-        ins = cls(queue, exporter_sock, logger)
-        ins.run()
-
-    def process(self, job):
-        with open(job['name'], 'w') as f:
-            f.write(job['content'])
-
-    def run(self):
-        count = 1
-        while 1:
-            job = self.queue.get()
-            logger.debug('get job %s %s ', job['source'], job['name'])
-            self.process(job)
-            if hasattr(self.queue, 'task_done'):
-                self.queue.task_done()
 
 
 class MainLoop(BaseClasses.ImporterBase):
@@ -66,19 +41,20 @@ class MainLoop(BaseClasses.ImporterBase):
         self._poller = poller
 
         for i in range(int(self.config['general']['importer_count'])):
-            worker = Process(
-                target=Worker.start,
-                args=(self._queue, self.exporter_sock, self._logger))
-            worker.start()
-            self._workers.append(worker)
+            worker_instance = Process(
+                target=worker.Worker.start,
+                args=(self._logger, self._queue, self.exporter_sock))
+            worker_instance.start()
+
+            self._workers.append(worker_instance)
 
     def do(self):
         socks = dict(self._poller.poll())
         if self.watcher_sock in socks and socks[
                 self.watcher_sock] == zmq.POLLIN:
             message = self.watcher_sock.recv_pyobj()
-            if not message:
-                print message
+            if not message or 'content' not in message or not message[
+                    'content']:
                 return
 
             self.debug("Recieved event: %s" % message['type'])

@@ -7,12 +7,19 @@ import enum
 
 class Base(object):
 
-    def __init__(self, logger, conf_path='config.ini'):
-        self._conf = ConfigObj(conf_path)
+    def __init__(self, logger):
+        self._logger = logger
         self._logger = logger
         self.debug = self._logger.debug
         self.info = self._logger.info
         self.error = self._logger.error
+
+
+class Service(Base):
+
+    def __init__(self, logger, conf_path='config.ini'):
+        super(Service, self).__init__(logger)
+        self._conf = ConfigObj(conf_path)
         self._zmq_ctx = zmq.Context()
         self._is_run = False
 
@@ -62,11 +69,9 @@ class Base(object):
         self.clean()
 
 
-class WatcherBase(Base):
+class WatcherBase(Service):
     pass
 
 
-class ImporterBase(Base):
+class ImporterBase(Service):
     pass
-
-
