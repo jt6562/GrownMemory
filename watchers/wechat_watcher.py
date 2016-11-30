@@ -45,7 +45,7 @@ class MyWeChat(weixin.WebWeixin):
             if content:
                 self.queue.put({'content': content,
                                 'type': content_type,
-                                'name': msgid + file_ext})
+                                'filename': msgid + file_ext})
 
     def webwxgetmsgimg(self, msgid):
         url = self.base_uri + \

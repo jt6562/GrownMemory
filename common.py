@@ -2,7 +2,6 @@
 
 import zmq
 from configobj import ConfigObj
-import enum
 
 
 class Base(object):

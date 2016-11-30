@@ -5,6 +5,7 @@ from watchers import base
 import gevent_inotifyx as inotify
 import os
 import logging
+from datetime import datetime
 import gevent.monkey
 gevent.monkey.patch_all()
 
@@ -37,7 +38,9 @@ class FileWatcher(base.Watcher):
             with open(filename, 'r') as f:
                 job = {'source': 'directory',
                        'type': 'image',  # or video
-                       'name': os.path.split(filename)[1],
+                       'filename': os.path.split(filename)[1],
+                       'ctime':
+                       datetime.fromtimestamp(os.path.getmtime(filename)),
                        'content': f.read()}
             self.info('Get a file: %s' % filename)
             self.send(job)

@@ -7,9 +7,11 @@
 这个项目就是为了解决照片的获取，解析，去重，保存而建立的。
 
 # Features
+
 [特性列表](doc/features.md)
 
 # Design
+
 [项目设计文档](doc/design.md)
 
 # TODO

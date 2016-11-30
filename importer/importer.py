@@ -41,9 +41,8 @@ class MainLoop(BaseClasses.ImporterBase):
         self._poller = poller
 
         for i in range(int(self.config['general']['importer_count'])):
-            worker_instance = Process(
-                target=worker.Worker.start,
-                args=(self._logger, self._queue, self.exporter_sock))
+            worker_instance = worker.Worker(self._logger, self._queue,
+                                            self.exporter_sock)
             worker_instance.start()
 
             self._workers.append(worker_instance)
