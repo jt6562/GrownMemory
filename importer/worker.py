@@ -48,6 +48,9 @@ class Worker(BaseClasses.Base, Process):
 
             exif.update({attr[0]: _tmp})
 
+        # Compute image hash
+        exif['img_eigen'] = ''
+
         return exif
 
     def get_exif(self, file_type, file_content):
@@ -87,7 +90,7 @@ class Worker(BaseClasses.Base, Process):
             'file_type': job['type'],
             'file_orgin_name': file_name,
             'file_ext': file_ext.lower(),
-            'hash': sha_hash,
+            'file_hash': sha_hash,
             'itime': datetime.utcnow()
         }
 
