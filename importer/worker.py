@@ -6,11 +6,14 @@ import hashlib
 # import exifread
 import piexif
 from piexif import ImageIFD, GPSIFD, ExifIFD
-from six import StringIO
+from six import BytesIO
 from multiprocessing import Process
-import common as BaseClasses
-import db
 from datetime import datetime
+from PIL import Image
+import imagehash
+
+import common as BaseClasses
+from database import *
 
 
 class Worker(BaseClasses.Base, Process):
@@ -49,7 +52,7 @@ class Worker(BaseClasses.Base, Process):
             exif.update({attr[0]: _tmp})
 
         # Compute image hash
-        exif['img_eigen'] = ''
+        exif['img_hash'] = str(imagehash.phash(Image.open(BytesIO(file_content)), hash_size=16))
 
         return exif
 
@@ -61,7 +64,7 @@ class Worker(BaseClasses.Base, Process):
 
     def _db_create_item(self, file_info):
         # TODO: Together all db operation into a class
-        item, created = db.Photo.get_or_create(hash=file_info['hash'])
+        item, created = Photo.get_or_create(file_hash=file_info['file_hash'])
         return item, created
 
     def _db_update_state(self, item, new_state):
@@ -74,8 +77,12 @@ class Worker(BaseClasses.Base, Process):
                 setattr(item, k, file_info[k])
         item.save()
 
-    def _db_save_item_to_conflict_photos(self, file_info):
-        pass
+#    def _db_save_item_to_conflict_photos(self, exist_item, file_info):
+#        file_info.update({'exist_photo': exist_item})
+#        item, created = ConflictPhoto.get_or_create(**file_info)
+#        if created:
+#            return
+#        self._db_save_item(item, file_info)
 
     def send_to_exporter(self, file_info):
         # TODO, Send to exporter
@@ -84,7 +91,7 @@ class Worker(BaseClasses.Base, Process):
     def process(self, job):
 
         file_content = job['content']
-        sha_hash = hashlib.sha1(file_content).hexdigest()
+        sha_hash = hashlib.sha256(file_content).hexdigest()
         file_name, file_ext = os.path.splitext(job['filename'])
         file_info = {
             'file_type': job['type'],
@@ -98,10 +105,10 @@ class Worker(BaseClasses.Base, Process):
         # Step 2
         _new, _is_new = self._db_create_item(file_info)
         if not _is_new:
-            self._db_save_item_to_conflict_photos(file_info)
+            self.info('The file does exist')
 
         # Step 3
-        self._db_update_state(_new, db.PhotoProcessState.parsing)
+        self._db_update_state(_new, PhotoProcessState.parsing)
         exif = {}
         if job['type'] == 'image':
             exif = self.get_exif(job['type'], file_content)
@@ -111,17 +118,17 @@ class Worker(BaseClasses.Base, Process):
         file_info.update(exif)
 
         self.debug("Process file:" + json.dumps(
-            file_info, cls=db.ItemJSONEncoder, ensure_ascii=False, indent=4))
-        self._db_update_state(_new, db.PhotoProcessState.parsed)
+            file_info, cls=ItemJSONEncoder, ensure_ascii=False, indent=4))
+        self._db_update_state(_new, PhotoProcessState.parsed)
 
         # Step 4
         self._db_save_item(_new, file_info)
 
         # Step 5
-        self._db_update_state(_new, db.PhotoProcessState.outputting)
+        self._db_update_state(_new, PhotoProcessState.outputting)
         file_info.update({'content': file_content})
         self.send_to_exporter(file_info)
-        self._db_update_state(_new, db.PhotoProcessState.outputted)
+        self._db_update_state(_new, PhotoProcessState.outputted)
 
     def run(self):
         count = 1
