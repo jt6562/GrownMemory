@@ -8,8 +8,8 @@ import logging
 import json
 import weixin
 import gevent.monkey
-import gevent.queue
-gevent.monkey.patch_all()
+# import gevent.queue
+# gevent.monkey.patch_all()
 
 logger = logging.getLogger('main.watchers.wechat')
 

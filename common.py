@@ -8,7 +8,7 @@ from multiprocessing import Process
 logger = logging.getLogger(__name__)
 
 
-class Base(object):
+class Base(Process):
     pass
 
 

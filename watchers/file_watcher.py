@@ -6,8 +6,8 @@ import gevent_inotifyx as inotify
 import os
 import logging
 from datetime import datetime
-import gevent.monkey
-gevent.monkey.patch_all()
+# import gevent.monkey
+# gevent.monkey.patch_all()
 
 logger = logging.getLogger('main.watchers.file')
 
@@ -58,3 +58,4 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)
     watcher = FileWatcher('indir1', 'config.ini')
     watcher.start()
+    watcher.join()

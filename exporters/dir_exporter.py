@@ -8,8 +8,8 @@ import logging
 from datetime import datetime
 from time import mktime
 import zmq
-import gevent.monkey
-gevent.monkey.patch_all()
+# import gevent.monkey
+# gevent.monkey.patch_all()
 
 logger = logging.getLogger('main.exporters.file')
 

@@ -14,11 +14,9 @@ digraph overview {
     // define
     subgraph cluster_watchers{
         label = "Watchers";
-        DirectoryWatcher [label="{DirectoryWatcher|<port> zmq}"];
+        FileWatcher [label="{FileWatcher|<port> zmq}"];
         WechatWatcher [label="{WechatWatcher|<port> zmq}"];
     }
-
-    Importer [label="{<inport> zmq 5556|<parser> Importer|<outport> zmq 5557}"];
 
     subgraph cluster_exporters{
         label = "Exporters";
@@ -26,8 +24,12 @@ digraph overview {
         QNAPExporter [label="{<inport> zmq|QNAPExporter}"];
     }
 
+
+    Importer [label="{<inport> dispatch|{worker|worker|worker}|zmq device}"];
+
+
     # Watcher -> Importer
-    {DirectoryWatcher:port, WechatWatcher:port} -> Importer:inport [label="pic info" headlabel="pull", taillabel=push];
+    {FileWatcher:port, WechatWatcher:port} -> Importer:inport [label="pic info" headlabel="pull", taillabel=push];
 
     # Picture process
     {rank=same;Importer,MySQL,"Web Server"}
@@ -69,19 +71,4 @@ digraph overview {
 
 ## 启动器 Starter
 
-使用supervisor管理多个实例进程。
-
-# 协议说明
-## Watcher -> Importer
-{
-    "source": "[directory|wechat|web]",
-    "type": "file",
-    "name": "file name",
-    "content": "file content"
-}
-
-## Import -> Exporter
-{
-    "name": "sha1 of file content",
-    "content": "file content"
-}
+使用supervisor管理多个实例进程。 supervisor提供web api接口用于查看进程状态。

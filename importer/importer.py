@@ -20,7 +20,6 @@ class MainLoop(BaseClasses.ImporterBase):
 
     def __init__(self, *args, **kw):
         super(MainLoop, self).__init__(*args, **kw)
-        self.watcher_sock = self.zmq_ctx.socket(zmq.PULL)
 
         self.is_stop = False
         self._queue = mq()
@@ -28,12 +27,13 @@ class MainLoop(BaseClasses.ImporterBase):
 
     def prepare(self):
         logger.info('Starting Main loop')
+        self.watcher_sock = self.zmq_ctx.socket(zmq.PULL)
         self.watcher_sock.bind("tcp://*:%s" %
                                self.config['general']['watcher_port'])
         logger.info('Listening watcher message, on port: %s' %
                     str(self.config['general']['watcher_port']))
 
-        queue_device = ThreadDevice(zmq.FORWARDER, zmq.SUB, zmq.PUB)
+        queue_device = ProcessDevice(zmq.FORWARDER, zmq.SUB, zmq.PUB)
         queue_device.bind_in("tcp://*:%s" %
                              self.config['general']['device_inport'])
         queue_device.setsockopt_in(zmq.SUBSCRIBE, "")
@@ -76,11 +76,8 @@ class MainLoop(BaseClasses.ImporterBase):
         self.queue_device.join()
 
 
-def main():
-    loop = MainLoop('config.ini')
-    loop.start()
-
-
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
-    main()
+    loop = MainLoop('config.ini')
+    loop.start()
+    loop.join()
