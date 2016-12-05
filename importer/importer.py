@@ -5,7 +5,10 @@ import logging
 import time
 import multiprocessing
 from multiprocessing import Process, Queue as mq
-import zmq as zmq
+# import zmq.green as zmq
+import zmq
+from zmq.devices import ProcessDevice, ThreadDevice
+import time
 
 import common as BaseClasses
 import worker
@@ -18,22 +21,26 @@ class MainLoop(BaseClasses.ImporterBase):
     def __init__(self, *args, **kw):
         super(MainLoop, self).__init__(*args, **kw)
         self.watcher_sock = self.zmq_ctx.socket(zmq.PULL)
-        self.exporter_sock = self.zmq_ctx.socket(zmq.PUB)
 
         self.is_stop = False
         self._queue = mq()
         self._workers = []
 
     def prepare(self):
-        self.info('Starting Main loop')
+        logger.info('Starting Main loop')
         self.watcher_sock.bind("tcp://*:%s" %
                                self.config['general']['watcher_port'])
-        self.info('Listening watcher message, on port: %s' %
-                  str(self.config['general']['watcher_port']))
-        self.exporter_sock.bind("tcp://*:%s" %
-                                self.config['general']['exporter_port'])
-        self.info('Listening exporter publisher, on port: %s' %
-                  str(self.config['general']['watcher_port']))
+        logger.info('Listening watcher message, on port: %s' %
+                    str(self.config['general']['watcher_port']))
+
+        queue_device = ThreadDevice(zmq.FORWARDER, zmq.SUB, zmq.PUB)
+        queue_device.bind_in("tcp://*:%s" %
+                             self.config['general']['device_inport'])
+        queue_device.setsockopt_in(zmq.SUBSCRIBE, "")
+        queue_device.bind_out("tcp://*:%s" %
+                              self.config['general']['exporter_port'])
+        queue_device.start()
+        self.queue_device = queue_device
 
         poller = zmq.Poller()
         poller.register(self.watcher_sock, zmq.POLLIN)
@@ -41,8 +48,8 @@ class MainLoop(BaseClasses.ImporterBase):
         self._poller = poller
 
         for i in range(int(self.config['general']['importer_count'])):
-            worker_instance = worker.Worker(self._logger, self._queue,
-                                            self.exporter_sock)
+            worker_instance = worker.Worker(
+                self._queue, self.config['general']['device_inport'])
             worker_instance.start()
 
             self._workers.append(worker_instance)
@@ -56,7 +63,7 @@ class MainLoop(BaseClasses.ImporterBase):
                     'content']:
                 return
 
-            self.debug("Recieved event: %s" % message['type'])
+            logger.debug("Recieved event: %s" % message['type'])
             self._queue.put(message)
 
     def clean(self):
@@ -66,13 +73,14 @@ class MainLoop(BaseClasses.ImporterBase):
 
         self.watcher_sock.disconnect()
         self.exporter_sock.disconnect()
+        self.queue_device.join()
 
 
 def main():
-    loop = MainLoop(logger, 'config.ini')
+    loop = MainLoop('config.ini')
     loop.start()
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(level=logging.INFO)
     main()

@@ -24,6 +24,7 @@ class FileWatcher(base.Watcher):
         self._inotify_fd = inotify.init()
         self._wd = inotify.add_watch(self._inotify_fd, self.watch_path,
                                      inotify.IN_CLOSE_WRITE)
+        logger.info("Listening path: %s" % self.watch_path)
 
     def do(self):
         events = inotify.get_events(self._inotify_fd)
@@ -31,18 +32,19 @@ class FileWatcher(base.Watcher):
             filename = os.path.join(self.watch_path, ev.name)
             file_ext = os.path.splitext(filename)[1].lower()
             if file_ext not in self._file_exts:
-                self.debug('Invalid file[%s] extension[%s] %s' %
-                           (filename, file_ext, self._file_exts))
+                logger.debug('Invalid file[%s] extension[%s] %s' %
+                             (filename, file_ext, self._file_exts))
                 continue
 
             with open(filename, 'r') as f:
-                job = {'source': 'directory',
-                       'type': 'image',  # or video
-                       'filename': os.path.split(filename)[1],
-                       'ctime':
-                       datetime.fromtimestamp(os.path.getmtime(filename)),
-                       'content': f.read()}
-            self.info('Get a file: %s' % filename)
+                job = {
+                    'source': 'directory',
+                    'type': 'image',  # or video
+                    'filename': os.path.split(filename)[1],
+                    'ctime': datetime.fromtimestamp(os.path.getmtime(filename)),
+                    'content': f.read()
+                }
+            logger.info('Get a file: %s' % filename)
             self.send(job)
             os.remove(filename)
 
@@ -54,5 +56,5 @@ class FileWatcher(base.Watcher):
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)
-    watcher = FileWatcher('indir1', logger, 'config.ini')
+    watcher = FileWatcher('indir1', 'config.ini')
     watcher.start()

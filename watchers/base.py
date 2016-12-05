@@ -18,7 +18,7 @@ class Watcher(BaseClasses.WatcherBase):
 
     def prepare(self):
         dest = 'tcp://localhost:%s' % self.config['general']['watcher_port']
-        self.info('Connecting %s', dest)
+        logger.info('Connecting %s', dest)
         self.watcher_sock.connect(dest)
 
     def send(self, job):
@@ -30,5 +30,5 @@ class Watcher(BaseClasses.WatcherBase):
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)
-    watcher = Watcher(logger, 'config.ini')
+    watcher = Watcher('config.ini')
     watcher.start()

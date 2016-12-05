@@ -2,22 +2,20 @@
 
 import zmq
 from configobj import ConfigObj
+import logging
+from multiprocessing import Process
+
+logger = logging.getLogger(__name__)
 
 
 class Base(object):
-
-    def __init__(self, logger):
-        self._logger = logger
-        self._logger = logger
-        self.debug = self._logger.debug
-        self.info = self._logger.info
-        self.error = self._logger.error
+    pass
 
 
 class Service(Base):
 
-    def __init__(self, logger, conf_path='config.ini'):
-        super(Service, self).__init__(logger)
+    def __init__(self, conf_path='config.ini'):
+        super(Service, self).__init__()
         self._conf = ConfigObj(conf_path)
         self._zmq_ctx = zmq.Context()
         self._is_run = False
@@ -49,22 +47,22 @@ class Service(Base):
     def clean():
         raise NotImplementedError
 
-    def start(self):
-        self.debug('Preparing')
+    def run(self):
+        logger.debug('Preparing')
         self.prepare()
 
-        self.debug('Starting ... ')
+        logger.debug('Starting ... ')
         self._is_run = True
         while self._is_run:
-            self.debug('Doing ...')
+            logger.debug('Waiting and do a job ...')
             self.do()
-        self.debug('Done')
+        logger.debug('Done')
 
     def stop(self):
-        self.debug('Stopping ...')
+        logger.debug('Stopping ...')
         self._is_run = False
 
-        self.debug('Cleaning ... ')
+        logger.debug('Cleaning ... ')
         self.clean()
 
 
@@ -73,4 +71,8 @@ class WatcherBase(Service):
 
 
 class ImporterBase(Service):
+    pass
+
+
+class ExporterBase(Service):
     pass

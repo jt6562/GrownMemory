@@ -43,9 +43,11 @@ class MyWeChat(weixin.WebWeixin):
                 logger.debug('Get a message: %s' % json.dumps(msg, indent=3))
 
             if content:
-                self.queue.put({'content': content,
-                                'type': content_type,
-                                'filename': msgid + file_ext})
+                self.queue.put({
+                    'content': content,
+                    'type': content_type,
+                    'filename': msgid + file_ext
+                })
 
     def webwxgetmsgimg(self, msgid):
         url = self.base_uri + \
@@ -107,5 +109,5 @@ class WechatWatcher(base.Watcher):
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)
-    watcher = WechatWatcher('wechat', logger, 'config.ini')
+    watcher = WechatWatcher('wechat', 'config.ini')
     watcher.start()

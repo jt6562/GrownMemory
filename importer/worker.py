@@ -11,19 +11,22 @@ from multiprocessing import Process
 from datetime import datetime
 from PIL import Image
 import imagehash
-
+import zmq
+import logging
 import common as BaseClasses
 from database import *
+
+logger = logging.getLogger(__name__)
 
 
 class Worker(BaseClasses.Base, Process):
 
-    def __init__(self, logger, queue, exporter_sock):
+    def __init__(self, queue, device_inport):
         Process.__init__(self)
-        BaseClasses.Base.__init__(self, logger)
+        BaseClasses.Base.__init__(self)
         self.queue = queue
-        self.exporter_sock = exporter_sock
-        self._logger = logger
+        self.device_inport = device_inport
+        self.daemon = True
 
     def _get_exif_by_piexif(self, file_content):
         _attrs = piexif.load(file_content)
@@ -52,7 +55,9 @@ class Worker(BaseClasses.Base, Process):
             exif.update({attr[0]: _tmp})
 
         # Compute image hash
-        exif['img_hash'] = str(imagehash.phash(Image.open(BytesIO(file_content)), hash_size=16))
+        exif['img_hash'] = str(
+            imagehash.phash(
+                Image.open(BytesIO(file_content)), hash_size=16))
 
         return exif
 
@@ -77,21 +82,16 @@ class Worker(BaseClasses.Base, Process):
                 setattr(item, k, file_info[k])
         item.save()
 
-#    def _db_save_item_to_conflict_photos(self, exist_item, file_info):
-#        file_info.update({'exist_photo': exist_item})
-#        item, created = ConflictPhoto.get_or_create(**file_info)
-#        if created:
-#            return
-#        self._db_save_item(item, file_info)
-
     def send_to_exporter(self, file_info):
         # TODO, Send to exporter
-        pass
+        logger.info('Sending file information to exporters')
+        # self.device_in.send_pyobj({'output': file_info})
+        self.device_in.send_pyobj(file_info)
 
     def process(self, job):
 
         file_content = job['content']
-        sha_hash = hashlib.sha256(file_content).hexdigest()
+        sha_hash = hashlib.sha1(file_content).hexdigest()
         file_name, file_ext = os.path.splitext(job['filename'])
         file_info = {
             'file_type': job['type'],
@@ -105,7 +105,7 @@ class Worker(BaseClasses.Base, Process):
         # Step 2
         _new, _is_new = self._db_create_item(file_info)
         if not _is_new:
-            self.info('The file does exist')
+            logger.info('The file does exist')
 
         # Step 3
         self._db_update_state(_new, PhotoProcessState.parsing)
@@ -117,7 +117,7 @@ class Worker(BaseClasses.Base, Process):
 
         file_info.update(exif)
 
-        self.debug("Process file:" + json.dumps(
+        logger.debug("Process file:" + json.dumps(
             file_info, cls=ItemJSONEncoder, ensure_ascii=False, indent=4))
         self._db_update_state(_new, PhotoProcessState.parsed)
 
@@ -131,10 +131,16 @@ class Worker(BaseClasses.Base, Process):
         self._db_update_state(_new, PhotoProcessState.outputted)
 
     def run(self):
-        count = 1
+        ctx = zmq.Context()
+        socket = ctx.socket(zmq.PUB)
+        dest = 'tcp://localhost:%s' % str(self.device_inport)
+        socket.connect(dest)
+        logger.info('Worker connected device[%s]' % dest)
+        self.device_in = socket
+
         while 1:
             job = self.queue.get()
-            self.debug('get job %s %s ', job['source'], job['filename'])
+            logger.debug('get job %s %s ', job['source'], job['filename'])
             self.process(job)
             if hasattr(self.queue, 'task_done'):
                 self.queue.task_done()
