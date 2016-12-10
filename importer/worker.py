@@ -26,7 +26,7 @@ class Worker(BaseClasses.Base, Process):
         BaseClasses.Base.__init__(self)
         self.queue = queue
         self.device_inport = device_inport
-        self.daemon = True
+        self.daemon = False
 
     def _get_exif_by_piexif(self, file_content):
         _attrs = piexif.load(file_content)

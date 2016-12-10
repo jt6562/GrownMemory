@@ -42,8 +42,6 @@ class MySQLModel(Model):
 
 
 class Photo(MySQLModel):
-    uuid = CharField(
-        max_length=32, unique=True, index=True, default=uuid4().hex)
     itime = DateTimeField(default=datetime.utcnow())
     ctime = DateTimeField(null=True)
     description = TextField(null=True)

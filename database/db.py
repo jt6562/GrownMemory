@@ -24,7 +24,7 @@ class MySQLDatabaseRetry(RetryOperationalError, MySQLDatabase):
 
 
 database = MySQLDatabaseRetry(
-    db_config.get('database', 'photo_collector'),
+    db_config.get('database', 'GrownMemory'),
     user=db_config['user'],
     passwd=db_config['password'],
     host=db_config.get('host', 'localhost'),

@@ -29,8 +29,12 @@ class DirectoryExporter(base.Exporter):
             os.mkdir(self.export_path)
 
         if not os.path.isdir(self.export_path):
-            os.remove(self.export_path)
-            os.mkdir(self.export_path)
+            try:
+                if os.path.exists(self.export_path):
+                    os.remove(self.export_path)
+                os.mkdir(self.export_path)
+            except OSError:
+                pass
 
         poller = zmq.Poller()
         poller.register(self.exporter_sock, zmq.POLLIN)
@@ -47,10 +51,19 @@ class DirectoryExporter(base.Exporter):
             file_content = job.pop('content', None)
             if not file_content:
                 return
-            logger.debug(json.dumps(job, cls=ItemJSONEncoder, indent=4))
+            logger.info(json.dumps(job, cls=ItemJSONEncoder, indent=4))
 
             file_name = job['file_hash'] + job['file_ext']
-            file_path = os.path.join(self.export_path, file_name)
+            dir_path = os.path.join(self.export_path, job['file_type'])
+            if not os.path.isdir(dir_path):
+                try:
+                    if os.path.exists(dir_path):
+                        os.remove(dir_path)
+                    os.mkdir(dir_path)
+                except OSError:
+                    pass
+
+            file_path = os.path.join(dir_path, file_name)
             ctime = mktime(job['ctime'].timetuple())
 
             with open(file_path, 'w') as f:
