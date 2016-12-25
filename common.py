@@ -3,12 +3,11 @@
 import zmq
 from configobj import ConfigObj
 import logging
-from multiprocessing import Process
 
 logger = logging.getLogger(__name__)
 
 
-class Base(Process):
+class Base(object):
     pass
 
 
@@ -44,8 +43,11 @@ class Service(Base):
         """
         raise NotImplementedError
 
-    def clean():
+    def clean(self):
         raise NotImplementedError
+
+    def start(self):
+        return self.run()
 
     def run(self):
         logger.debug('Preparing')
@@ -70,7 +72,7 @@ class WatcherBase(Service):
     pass
 
 
-class ImporterBase(Service):
+class WorkerBase(Service):
     pass
 
 

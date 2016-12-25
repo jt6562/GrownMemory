@@ -7,7 +7,6 @@ import hashlib
 import piexif
 from piexif import ImageIFD, GPSIFD, ExifIFD
 from six import BytesIO
-from multiprocessing import Process
 from datetime import datetime
 from PIL import Image
 import imagehash
@@ -19,14 +18,10 @@ from database import *
 logger = logging.getLogger(__name__)
 
 
-class Worker(BaseClasses.Base, Process):
+class Worker(BaseClasses.WorkerBase):
 
-    def __init__(self, queue, device_inport):
-        Process.__init__(self)
-        BaseClasses.Base.__init__(self)
-        self.queue = queue
-        self.device_inport = device_inport
-        self.daemon = False
+    def __init__(self, *args, **kw):
+        super(Worker, self).__init__(*args, **kw)
 
     def _get_exif_by_piexif(self, file_content):
         _attrs = piexif.load(file_content)
@@ -85,8 +80,8 @@ class Worker(BaseClasses.Base, Process):
     def send_to_exporter(self, file_info):
         # TODO, Send to exporter
         logger.info('Sending file information to exporters')
-        # self.device_in.send_pyobj({'output': file_info})
-        self.device_in.send_pyobj(file_info)
+        # self.forwarder_in.send_pyobj({'output': file_info})
+        self.forwarder_in.send_pyobj(file_info)
 
     def process(self, job):
 
@@ -105,7 +100,7 @@ class Worker(BaseClasses.Base, Process):
         # Step 2
         _new, _is_new = self._db_create_item(file_info)
         if not _is_new:
-            logger.info('The file does exist')
+            logger.info('The file record had existed')
 
         # Step 3
         self._db_update_state(_new, PhotoProcessState.parsing)
@@ -131,16 +126,27 @@ class Worker(BaseClasses.Base, Process):
         self._db_update_state(_new, PhotoProcessState.outputted)
 
     def run(self):
-        ctx = zmq.Context()
-        socket = ctx.socket(zmq.PUB)
-        dest = 'tcp://localhost:%s' % str(self.device_inport)
-        socket.connect(dest)
+        in_socket = self.zmq_ctx.socket(zmq.PULL)
+        src = 'tcp://localhost:%s' % str(self.config['general'][
+            'dispatcher_outport'])
+        in_socket.connect(src)
+        logger.info('Worker connected dispatcher device[%s]' % src)
+        self.job_queue = in_socket
+
+        out_socket = self.zmq_ctx.socket(zmq.PUB)
+        dest = 'tcp://localhost:%s' % str(self.config['general'][
+            'forwarder_inport'])
+        out_socket.connect(dest)
         logger.info('Worker connected device[%s]' % dest)
-        self.device_in = socket
+        self.forwarder_in = out_socket
 
         while 1:
-            job = self.queue.get()
+            job = self.job_queue.recv_pyobj()
+            print job['filename']
             logger.debug('get job %s %s ', job['source'], job['filename'])
             self.process(job)
-            if hasattr(self.queue, 'task_done'):
-                self.queue.task_done()
+
+if __name__ == '__main__':
+    logging.basicConfig(level=logging.INFO)
+    worker = Worker('config.ini')
+    worker.start()

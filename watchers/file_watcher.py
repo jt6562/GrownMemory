@@ -58,4 +58,3 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)
     watcher = FileWatcher('indir1', 'config.ini')
     watcher.start()
-    watcher.join()

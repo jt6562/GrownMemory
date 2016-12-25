@@ -14,7 +14,8 @@ class Watcher(BaseClasses.WatcherBase):
 
     def prepare(self):
         self.watcher_sock = self.zmq_ctx.socket(zmq.PUSH)
-        dest = 'tcp://localhost:%s' % self.config['general']['watcher_port']
+        dest = 'tcp://localhost:%s' % self.config['general'][
+            'dispatcher_inport']
         logger.info('Connecting %s', dest)
         self.watcher_sock.connect(dest)
 
