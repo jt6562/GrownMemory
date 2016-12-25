@@ -23,6 +23,20 @@ class Worker(BaseClasses.WorkerBase):
     def __init__(self, *args, **kw):
         super(Worker, self).__init__(*args, **kw)
 
+        in_socket = self.zmq_ctx.socket(zmq.PULL)
+        src = 'tcp://localhost:%s' % str(self.config['general'][
+            'dispatcher_outport'])
+        in_socket.connect(src)
+        logger.info('Worker connected dispatcher out [%s]' % src)
+        self.job_queue = in_socket
+
+        out_socket = self.zmq_ctx.socket(zmq.PUB)
+        dest = 'tcp://localhost:%s' % str(self.config['general'][
+            'forwarder_inport'])
+        out_socket.connect(dest)
+        logger.info('Worker connected forwarder in [%s]' % dest)
+        self.forwarder_in = out_socket
+
     def _get_exif_by_piexif(self, file_content):
         _attrs = piexif.load(file_content)
         _need_attr = [
@@ -78,9 +92,7 @@ class Worker(BaseClasses.WorkerBase):
         item.save()
 
     def send_to_exporter(self, file_info):
-        # TODO, Send to exporter
         logger.info('Sending file information to exporters')
-        # self.forwarder_in.send_pyobj({'output': file_info})
         self.forwarder_in.send_pyobj(file_info)
 
     def process(self, job):
@@ -126,25 +138,12 @@ class Worker(BaseClasses.WorkerBase):
         self._db_update_state(_new, PhotoProcessState.outputted)
 
     def run(self):
-        in_socket = self.zmq_ctx.socket(zmq.PULL)
-        src = 'tcp://localhost:%s' % str(self.config['general'][
-            'dispatcher_outport'])
-        in_socket.connect(src)
-        logger.info('Worker connected dispatcher device[%s]' % src)
-        self.job_queue = in_socket
-
-        out_socket = self.zmq_ctx.socket(zmq.PUB)
-        dest = 'tcp://localhost:%s' % str(self.config['general'][
-            'forwarder_inport'])
-        out_socket.connect(dest)
-        logger.info('Worker connected device[%s]' % dest)
-        self.forwarder_in = out_socket
 
         while 1:
             job = self.job_queue.recv_pyobj()
-            print job['filename']
             logger.debug('get job %s %s ', job['source'], job['filename'])
             self.process(job)
+
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)

@@ -3,80 +3,49 @@
 import json
 import logging
 import time
-import multiprocessing
-from multiprocessing import Process, Queue as mq
 # import zmq.green as zmq
 import zmq
-from zmq.devices import ProcessDevice, ThreadDevice
 import time
 
 import common as BaseClasses
 import worker
 
-logger = logging.getLogger('main.importer.importer')
+logger = logging.getLogger('main.importer.forwarder')
 
 
-class MainLoop(BaseClasses.ImporterBase):
+class Forwarder(BaseClasses.Service):
 
     def __init__(self, *args, **kw):
-        super(MainLoop, self).__init__(*args, **kw)
+        super(Forwarder, self).__init__(*args, **kw)
 
         self.is_stop = False
-        self._queue = mq()
-        self._workers = []
 
     def prepare(self):
-        logger.info('Starting Main loop')
-        self.watcher_sock = self.zmq_ctx.socket(zmq.PULL)
-        self.watcher_sock.bind("tcp://*:%s" %
-                               self.config['general']['watcher_port'])
-        logger.info('Listening watcher message, on port: %s' %
-                    str(self.config['general']['watcher_port']))
+        pass
 
-        queue_device = ProcessDevice(zmq.FORWARDER, zmq.SUB, zmq.PUB)
-        queue_device.bind_in("tcp://*:%s" %
-                             self.config['general']['device_inport'])
-        queue_device.setsockopt_in(zmq.SUBSCRIBE, "")
-        queue_device.bind_out("tcp://*:%s" %
-                              self.config['general']['exporter_port'])
-        queue_device.start()
-        self.queue_device = queue_device
+    def run(self):
+        self.forwarder_insock = self.zmq_ctx.socket(zmq.SUB)
+        self.forwarder_insock.bind("tcp://*:%s" %
+                                   self.config['general']['forwarder_inport'])
+        self.forwarder_insock.setsockopt(zmq.SUBSCRIBE, "")
+        logger.info('Listening worker connect, on port: %s' %
+                    str(self.config['general']['forwarder_inport']))
 
-        poller = zmq.Poller()
-        poller.register(self.watcher_sock, zmq.POLLIN)
-        # poller.register(self.exporter_sock, zmq.POLLOUT)
-        self._poller = poller
+        self.forwarder_outsock = self.zmq_ctx.socket(zmq.PUB)
+        self.forwarder_outsock.bind("tcp://*:%s" %
+                                    self.config['general']['forwarder_outport'])
+        logger.info('Listening exporter connect, on port: %s' %
+                    str(self.config['general']['forwarder_outport']))
 
-        for i in range(int(self.config['general']['importer_count'])):
-            worker_instance = worker.Worker(
-                self._queue, self.config['general']['device_inport'])
-            worker_instance.start()
-
-            self._workers.append(worker_instance)
-
-    def do(self):
-        socks = dict(self._poller.poll())
-        if self.watcher_sock in socks and socks[
-                self.watcher_sock] == zmq.POLLIN:
-            message = self.watcher_sock.recv_pyobj()
-            if not message or 'content' not in message or not message[
-                    'content']:
-                return
-
-            logger.debug("Recieved event: %s" % message['type'])
-            self._queue.put(message)
+        logger.info('Starting job forwarder')
+        zmq.device(zmq.FORWARDER, self.forwarder_insock, self.forwarder_outsock)
 
     def clean(self):
-        self._queue.join()
-        for i in range(self._conf['general']['importer_count']):
-            self.workers[i].join()
-
-        self.watcher_sock.disconnect()
-        self.exporter_sock.disconnect()
-        self.queue_device.join()
+        self.forwarder_insock.disconnect()
+        self.forwarder_outsock.disconnect()
 
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
-    loop = MainLoop('config.ini')
-    loop.start()
+    forwarder = Forwarder('config.ini')
+    forwarder.start()

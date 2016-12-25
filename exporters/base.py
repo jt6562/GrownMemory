@@ -14,7 +14,8 @@ class Exporter(BaseClasses.ExporterBase):
 
     def prepare(self):
         self.exporter_sock = self.zmq_ctx.socket(zmq.SUB)
-        dest = 'tcp://localhost:%s' % self.config['general']['exporter_port']
+        dest = 'tcp://localhost:%s' % self.config['general'][
+            'forwarder_outport']
         logger.info('Connecting %s', dest)
         self.exporter_sock.connect(dest)
         logger.info('Subscribing all message')
